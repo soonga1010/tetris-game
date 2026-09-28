@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌈 알록달록 레트로 테트리스 🎮</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Jua & Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Jua', sans-serif;
+            background: linear-gradient(135deg, #0f172a 1e-0%, #1e1b4b 50%, #311042 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+        canvas {
+            background-color: #090d16;
+            display: block;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5), 0 0 20px rgba(99, 102, 241, 0.3);
+            border: 4px solid #4f46e5;
+            max-width: 100%;
+            height: auto;
+        }
+        .retro-button {
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 0 #3730a3;
+        }
+        .retro-button:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #3730a3;
+        }
+    </style>
+</head>
+<body class="p-4 selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header Title -->
+    <header class="text-center mb-4">
+        <h1 class="text-2xl sm:text-4xl font-black bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg">
+            🎮 알록달록 레트로 테트리스 🌈
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1">블록을 조심히 쌓아 점수를 높여보세요!</p>
+    </header>
+
+    <!-- Game Main Layout -->
+    <div class="flex flex-col lg:flex-row gap-6 items-center bg-slate-900/80 backdrop-blur-xl p-6 rounded-3xl border border-slate-800 shadow-2xl">
+        
+        <!-- Left Sidebar: Score & Next Piece -->
+        <div class="flex flex-row lg:flex-col gap-4 w-full lg:w-48 justify-between">
+            <!-- Score Card -->
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl flex-1 text-center shadow-md">
+                <span class="text-xs text-slate-400 block mb-1">⭐ 현재 점수</span>
+                <span id="score" class="text-2xl sm:text-3xl font-black text-yellow-400">0</span>
+            </div>
+
+            <!-- Level Card -->
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl flex-1 text-center shadow-md">
+                <span class="text-xs text-slate-400 block mb-1">🚀 레벨</span>
+                <span id="level" class="text-2xl sm:text-3xl font-black text-pink-400">1</span>
+            </div>
+
+            <!-- Next Block Preview -->
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl hidden sm:flex flex-col items-center shadow-md">
+                <span class="text-xs text-slate-400 mb-2">🎁 다음 블록</span>
+                <canvas id="nextCanvas" width="90" height="90" class="bg-slate-900 rounded-xl border border-slate-700"></canvas>
+            </div>
+        </div>
+
+        <!-- Center: Main Tetris Board -->
+        <div class="relative flex flex-col items-center">
+            <canvas id="tetrisCanvas" width="300" height="600"></canvas>
+            
+            <!-- Game Over / Start Overlay Modal -->
+            <div id="modal" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center z-10">
+                <h2 id="modal-title" class="text-3xl font-black text-indigo-400 mb-2">TETRIS</h2>
+                <p id="modal-desc" class="text-sm text-slate-300 mb-6">방향키 또는 아래 버튼으로 플레이하세요!</p>
+                <button id="action-btn" onclick="startGame()" class="retro-button bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3.5 rounded-2xl text-lg">
+                    🚀 게임 시작
+                </button>
+            </div>
+        </div>
+
+        <!-- Right / Bottom Sidebar: Controls for Touch / Mobile -->
+        <div class="flex flex-col gap-4 w-full lg:w-48">
+            <!-- Controls Guide Card -->
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl shadow-md text-xs text-slate-300 space-y-1.5">
+                <strong class="text-white block mb-1 text-sm">⌨️ 조작 방법</strong>
+                <div>⬅️ ➡️ : 좌우 이동</div>
+                <div>⬆️ : 회전 (Rotate)</div>
+                <div>⬇️ : 빨리 내리기</div>
+                <div>SPACE : 즉시 하강</div>
+            </div>
+
+            <!-- Touch On-Screen Controls (Great for mobile/tablet) -->
+            <div class="grid grid-cols-3 gap-2 bg-slate-800/50 p-3 rounded-2xl border border-slate-700/60">
+                <button onclick="moveLeft()" class="retro-button bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-lg flex items-center justify-center">◀️</button>
+                <button onclick="rotatePiece()" class="retro-button bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-bold text-lg flex items-center justify-center">🔄</button>
+                <button onclick="moveRight()" class="retro-button bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-lg flex items-center justify-center">▶️</button>
+                <button onclick="moveDown()" class="retro-button bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-lg flex items-center justify-center col-span-1">🔽</button>
+                <button onclick="hardDrop()" class="retro-button bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold text-sm col-span-2 flex items-center justify-center">⚡ 뚝 떨어뜨리기</button>
+            </div>
+        </div>
+
+    </div>
+
+    <footer class="text-center mt-6 text-xs text-slate-500">
+        <p>GitHub Pages Ready • 알록달록 테트리스 게임 🎮</p>
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('tetrisCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const nextCtx = nextCanvas.getContext('2d');
+
+        const BLOCK_SIZE = 30;
+        const COLS = 10;
+        const ROWS = 20;
+
+        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        let score = 0;
+        let level = 1;
+        let gameOver = false;
+        let gameStarted = false;
+        let dropInterval = 1000;
+        let dropCounter = 0;
+        let lastTime = 0;
+
+        // Tetromino shapes & colors
+        const SHAPES = [
+            [],
+            [[1, 1, 1, 1]], // I
+            [[1, 1], [1, 1]], // O
+            [[0, 1, 0], [1, 1, 1]], // T
+            [[0, 0, 1], [1, 1, 1]], // L
+            [[1, 0, 0], [1, 1, 1]], // J
+            [[0, 1, 1], [1, 1, 0]], // S
+            [[1, 1, 0], [0, 1, 1]]  // Z
+        ];
+
+        const COLORS = [
+            null,
+            '#06b6d4', // Cyan (I)
+            #eab308', // Yellow (O)
+            '#a855f7', // Purple (T)
+            '#f97316', // Orange (L)
+            '#3b82f6', // Blue (J)
+            '#22c55e', // Green (S)
+            '#ef4444'  // Red (Z)
+        ];
+
+        let currentPiece = null;
+        let nextPiece = null;
+
+        function createPiece(type) {
+            return {
+                shape: SHAPES[type],
+                colorIndex: type,
+                x: Math.floor(COLS / 2) - Math.floor(SHAPES[type][0].length / 2),
+                y: 0
+            };
+        }
+
+        function resetGame() {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            score = 0;
+            level = 1;
+            dropInterval = 1000;
+            document.getElementById('score').innerText = score;
+            document.getElementById('level').innerText = level;
+            currentPiece = createPiece(Math.floor(Math.random() * 7) + 1);
+            nextPiece = createPiece(Math.floor(Math.random() * 7) + 1);
+            gameOver = false;
+        }
+
+        function startGame() {
+            resetGame();
+            gameStarted = true;
+            document.getElementById('modal').classList.add('hidden');
+            lastTime = performance.now();
+            requestAnimationFrame(update);
+        }
+
+        function triggerGameOver() {
+            gameOver = true;
+            gameStarted = false;
+            document.getElementById('modal-title').innerText = "GAME OVER";
+            document.getElementById('modal-desc').innerText = `최종 점수: ${score}점! 다시 도전해보세요!`;
+            document.getElementById('action-btn').innerText = "🔄 다시 시작";
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function drawBlock(context, x, y, colorIndex, size = BLOCK_SIZE) {
+            context.fillStyle = COLORS[colorIndex];
+            context.fillRect(x * size, y * size, size, size);
+            
+            // Retro 3D border effect
+            context.strokeStyle = 'rgba(255,255,255,0.2)';
+            context.lineWidth = 2;
+            context.strokeRect(x * size, y * size, size, size);
+        }
+
+        function drawBoard() {
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines faintly
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    ctx.strokeRect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                }
+            }
+
+            // Draw locked board pieces
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] > 0) {
+                        drawBlock(ctx, c, r, board[r][c]);
+                    }
+                }
+            }
+
+            // Draw active piece
+            if (currentPiece) {
+                currentPiece.shape.forEach((row, r) => {
+                    row.forEach((value, c) => {
+                        if (value > 0) {
+                            drawBlock(ctx, currentPiece.x + c, currentPiece.y + r, currentPiece.colorIndex);
+                        }
+                    });
+                });
+            }
+        }
+
+        function drawNextPiece() {
+            nextCtx.fillStyle = '#090d16';
+            nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+
+            if (nextPiece) {
+                const size = 22;
+                const offsetX = (nextCanvas.width - nextPiece.shape[0].length * size) / 2 / size;
+                const offsetY = (nextCanvas.height - nextPiece.shape.length * size) / 2 / size;
+
+                nextPiece.shape.forEach((row, r) => {
+                    row.forEach((value, c) => {
+                        if (value > 0) {
+                            drawBlock(nextCtx, offsetX + c, offsetY + r, nextPiece.colorIndex, size);
+                        }
+                    });
+                });
+            }
+        }
+
+        function collide(piece, dx, dy) {
+            for (let r = 0; r < piece.shape.length; r++) {
+                for (let c = 0; c < piece.shape[r].length; c++) {
+                    if (piece.shape[r][c] > 0) {
+                        let newX = piece.x + c + dx;
+                        let newY = piece.y + r + dy;
+                        if (newX < 0 || newX >= COLS || newY >= ROWS) return true;
+                        if (newY >= 0 && board[newY][newX] > 0) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function mergePiece() {
+            currentPiece.shape.forEach((row, r) => {
+                row.forEach((value, c) => {
+                    if (value > 0) {
+                        if (currentPiece.y + r >= 0) {
+                            board[currentPiece.y + r][currentPiece.x + c] = currentPiece.colorIndex;
+                        }
+                    }
+                });
+            });
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            outer: for (let r = ROWS - 1; r >= 0; r--) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] === 0) continue outer;
+                }
+                const row = board.splice(r, 1)[0].fill(0);
+                board.unshift(row);
+                r++;
+                linesCleared++;
+            }
+
+            if (linesCleared > 0) {
+                score += linesCleared * 100 * level;
+                document.getElementById('score').innerText = score;
+
+                level = Math.floor(score / 500) + 1;
+                document.getElementById('level').innerText = level;
+                dropInterval = Math.max(200, 1000 - (level - 1) * 100);
+            }
+        }
+
+        function dropPiece() {
+            if (!collide(currentPiece, 0, 1)) {
+                currentPiece.y++;
+            } else {
+                mergePiece();
+                clearLines();
+                currentPiece = nextPiece;
+                nextPiece = createPiece(Math.floor(Math.random() * 7) + 1);
+                if (collide(currentPiece, 0, 0)) {
+                    triggerGameOver();
+                }
+            }
+            dropCounter = 0;
+        }
+
+        function moveLeft() {
+            if (!gameStarted || gameOver) return;
+            if (!collide(currentPiece, -1, 0)) currentPiece.x--;
+        }
+
+        function moveRight() {
+            if (!gameStarted || gameOver) return;
+            if (!collide(currentPiece, 1, 0)) currentPiece.x++;
+        }
+
+        function moveDown() {
+            if (!gameStarted || gameOver) return;
+            dropPiece();
+        }
+
+        function rotatePiece() {
+            if (!gameStarted || gameOver) return;
+            const originalShape = currentPiece.shape;
+            const transposed = originalShape[0].map((_, colIndex) => originalShape.map(row => row[colIndex]));
+            const rotated = transposed.map(row => row.reverse());
+            
+            let backupShape = currentPiece.shape;
+            currentPiece.shape = rotated;
+
+            let wallKick = 0;
+            if (collide(currentPiece, 0, 0)) {
+                if (!collide(currentPiece, -1, 0)) { currentPiece.x--; }
+                else if (!collide(currentPiece, 1, 0)) { currentPiece.x++; }
+                else if (!collide(currentPiece, 0, -1)) { currentPiece.y--; }
+                else { currentPiece.shape = backupShape; } // Revert if unable to rotate
+            }
+        }
+
+        function hardDrop() {
+            if (!gameStarted || gameOver) return;
+            while (!collide(currentPiece, 0, 1)) {
+                currentPiece.y++;
+                score += 2;
+            }
+            document.getElementById('score').innerText = score;
+            dropPiece();
+        }
+
+        // Keyboard inputs
+        document.addEventListener('keydown', event => {
+            if (!gameStarted || gameOver) return;
+            if (event.key === 'ArrowLeft') moveLeft();
+            else if (event.key === 'ArrowRight') moveRight();
+            else if (event.key === 'ArrowDown') moveDown();
+            else if (event.key === 'ArrowUp') rotatePiece();
+            else if (event.key === ' ') { event.preventDefault(); hardDrop(); }
+        });
+
+        function update(time = 0) {
+            if (!gameStarted || gameOver) return;
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            dropCounter += deltaTime;
+
+            if (dropCounter > dropInterval) {
+                dropPiece();
+            }
+
+            drawBoard();
+            drawNextPiece();
+            requestAnimationFrame(update);
+        }
+
+        // Initial draw preview
+        drawBoard();
+    </script>
+</body>
+</html>
+```
+
+### 🚀 깃허브(GitHub Pages)에 배포하는 방법:
+1. 컴퓨터에서 메모장이나 코드 편집기(VS Code 등)를 열고 위 코드를 복사하여 **`index.html`** 이라는 이름으로 저장합니다.
+2. [GitHub](https://github.com/)에 로그인 후 새 리포지토리(Repository)를 생성합니다.
+3. 생성된 리포지토리에 방금 만든 `index.html` 파일을 업로드(Upload files)합니다.
+4. 리포지토리 상단의 **Settings** 메뉴로 이동합니다.
+5. 좌측 메뉴에서 **Pages**를 클릭합니다.
+6. **Build and deployment** 항목의 **Branch**를 `main` (또는 `master`), 폴더를 `/ (root)`로 선택한 뒤 **Save**를 누릅니다.
+7. 1~2분 뒤 페이지에 생성되는 URL 링크(`https://계정명.github.io/리포지토리명/`)를 누르면 언제 어디서나 테트리스 게임을 즐길 수 있습니다!
